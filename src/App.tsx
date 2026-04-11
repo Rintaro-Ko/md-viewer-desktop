@@ -7,10 +7,24 @@ import { Outline } from "./components/Outline";
 import { GlobalSearch } from "./components/GlobalSearch";
 import { MarkerPopover } from "./components/MarkerPopover";
 import { MarkerList } from "./components/MarkerList";
-import { listMarkdownFiles, pickFolder, readMarkdownFile } from "./api";
+import { RecentMenu } from "./components/RecentMenu";
+import {
+  describeFile,
+  listMarkdownFiles,
+  pickFolder,
+  pickMarkdownFile,
+  readMarkdownFile,
+} from "./api";
 import type { Marker, MarkerColor, MdFileEntry, TocItem } from "./types";
 import { loadAllMarkers, addMarker, removeMarker } from "./markerStore";
 import { uid } from "./utils";
+import {
+  clearRecent,
+  loadRecent,
+  pushRecent,
+  removeRecent,
+  type RecentFile,
+} from "./recentFiles";
 
 type Theme = "dark" | "light";
 type RightTab = "outline" | "markers";
@@ -34,6 +48,7 @@ function App() {
   const [selection, setSelection] = useState<{ text: string; top: number; left: number } | null>(
     null
   );
+  const [recent, setRecent] = useState<RecentFile[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -48,6 +63,7 @@ function App() {
 
   useEffect(() => {
     loadAllMarkers().then(setMarkers).catch(console.error);
+    setRecent(loadRecent());
   }, []);
 
   const openFile = useCallback(async (file: MdFileEntry) => {
@@ -58,6 +74,7 @@ function App() {
       setContent(text);
       setPageSearch("");
       localStorage.setItem(LAST_FILE_KEY, file.path);
+      setRecent(pushRecent(file.path));
       window.scrollTo(0, 0);
     } catch (e) {
       setError(String(e));
@@ -96,6 +113,42 @@ function App() {
     const picked = await pickFolder();
     if (picked) await loadRoot(picked);
   };
+
+  const handlePickFile = async () => {
+    const picked = await pickMarkdownFile();
+    if (!picked) return;
+    try {
+      setError(null);
+      const entry = await describeFile(picked);
+      setFiles((prev) => {
+        if (prev.some((f) => f.path === entry.path)) return prev;
+        return [...prev, entry];
+      });
+      await openFile(entry);
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
+  const handleOpenRecent = async (path: string) => {
+    try {
+      setError(null);
+      const existing = files.find((f) => f.path === path);
+      if (existing) {
+        await openFile(existing);
+        return;
+      }
+      const entry = await describeFile(path);
+      setFiles((prev) => [...prev, entry]);
+      await openFile(entry);
+    } catch (e) {
+      setError(`Could not open ${path}: ${e}`);
+      setRecent(removeRecent(path));
+    }
+  };
+
+  const handleRemoveRecent = (path: string) => setRecent(removeRecent(path));
+  const handleClearRecent = () => setRecent(clearRecent());
 
   const handleToc = useCallback((items: TocItem[]) => setToc(items), []);
 
@@ -146,7 +199,10 @@ function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey;
-      if (mod && e.key === "o") {
+      if (mod && e.shiftKey && e.key.toLowerCase() === "o") {
+        e.preventDefault();
+        handlePickFile();
+      } else if (mod && e.key === "o") {
         e.preventDefault();
         handlePickFolder();
       } else if (mod && e.shiftKey && e.key.toLowerCase() === "f") {
@@ -175,6 +231,15 @@ function App() {
           <button className="btn-primary" onClick={handlePickFolder}>
             📁 Open Folder
           </button>
+          <button className="btn-secondary" onClick={handlePickFile} title="Open a single .md file">
+            📄 Open File
+          </button>
+          <RecentMenu
+            items={recent}
+            onPick={handleOpenRecent}
+            onRemove={handleRemoveRecent}
+            onClear={handleClearRecent}
+          />
           <div className="root-path" title={root ?? ""}>
             {root ?? "No folder opened"}
           </div>
@@ -256,12 +321,36 @@ function App() {
             <div className="empty-state center">
               <h1>MD Viewer</h1>
               <p>Open a folder to browse your Markdown files.</p>
-              <button className="btn-primary" onClick={handlePickFolder}>
-                📁 Open Folder
-              </button>
+              <div className="empty-actions">
+                <button className="btn-primary" onClick={handlePickFolder}>
+                  📁 Open Folder
+                </button>
+                <button className="btn-secondary" onClick={handlePickFile}>
+                  📄 Open File
+                </button>
+              </div>
+              {recent.length > 0 && (
+                <div className="recent-quick">
+                  <div className="recent-quick-title">Recent files</div>
+                  {recent.slice(0, 6).map((r) => (
+                    <button
+                      key={r.path}
+                      className="recent-quick-item"
+                      onClick={() => handleOpenRecent(r.path)}
+                      title={r.path}
+                    >
+                      <span className="recent-quick-name">📄 {r.name}</span>
+                      <span className="recent-quick-path">{r.path}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
               <div className="shortcuts">
                 <div>
                   <kbd>⌘</kbd>+<kbd>O</kbd> Open folder
+                </div>
+                <div>
+                  <kbd>⌘</kbd>+<kbd>⇧</kbd>+<kbd>O</kbd> Open single file
                 </div>
                 <div>
                   <kbd>⌘</kbd>+<kbd>F</kbd> Search in page

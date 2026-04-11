@@ -87,6 +87,32 @@ fn path_exists(path: String) -> bool {
     std::path::Path::new(&path).exists()
 }
 
+#[tauri::command]
+fn describe_file(path: String) -> Result<MdFileEntry, String> {
+    let p = PathBuf::from(&path);
+    if !p.is_file() {
+        return Err(format!("Not a file: {}", path));
+    }
+    let meta = p.metadata().map_err(|e| e.to_string())?;
+    let modified = meta
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let name = p
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_default();
+    Ok(MdFileEntry {
+        path: p.to_string_lossy().to_string(),
+        name: name.clone(),
+        rel_path: name,
+        size: meta.len(),
+        modified,
+    })
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -97,7 +123,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             list_markdown_files,
             read_markdown_file,
-            path_exists
+            path_exists,
+            describe_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
