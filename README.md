@@ -133,4 +133,4 @@ md-viewer-desktop/
 
 ## License
 
-MIT © Rintaro-Ko
+MIT License — see [LICENSE](LICENSE).

@@ -2,7 +2,7 @@
 name = "md-viewer-desktop"
 version = "0.1.0"
 description = "Human-friendly multi-markdown viewer desktop app"
-authors = ["Rintaro-Ko"]
+authors = ["md-viewer-desktop maintainers"]
 edition = "2021"
 
 [lib]
