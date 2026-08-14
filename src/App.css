@@ -9,50 +9,42 @@
     monospace;
   --line-height: 1.75;
   --reading-width: 820px;
+
+  /* App-local names bound to RKDS role tokens (@rk-design/tokens, imported in
+     main.tsx). The roles are light-dark() pairs, so they resolve against the
+     color-scheme set by the data-theme rules below. */
+  --bg: var(--color-surface);
+  --bg-elev: var(--color-surface-container-low);
+  --bg-elev-2: var(--color-surface-container);
+  --bg-hover: var(--color-surface-container-high);
+  --border: var(--color-outline-variant);
+  --border-strong: var(--color-outline);
+  --text: var(--color-on-surface);
+  --text-muted: var(--color-on-surface-variant);
+  --text-dim: var(--color-outline);
+  --accent: var(--color-primary);
+  --accent-strong: color-mix(in srgb, var(--color-on-primary) 8%, var(--color-primary));
+  --accent-fg: var(--color-on-primary);
+  --danger: var(--color-error);
+  --link: var(--color-primary);
+  --code-bg: var(--color-surface-container-lowest);
+  --shadow: 0 12px 32px
+    light-dark(
+      color-mix(in srgb, var(--color-shadow) 12%, transparent),
+      color-mix(in srgb, var(--color-shadow) 55%, transparent)
+    );
+
+  /* Highlighter ink, not a UI surface: stays a fixed semantic color. */
+  --search-hit: light-dark(#ffe066, #ffd166);
+  --search-hit-fg: light-dark(#3a2a00, #1a1400);
 }
 
 html[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #0f1115;
-  --bg-elev: #161922;
-  --bg-elev-2: #1d2030;
-  --bg-hover: #252a3a;
-  --border: #2a2f42;
-  --border-strong: #3a4059;
-  --text: #e6e8ef;
-  --text-muted: #9aa2b8;
-  --text-dim: #6b7280;
-  --accent: #7aa2ff;
-  --accent-strong: #5c85ff;
-  --accent-fg: #0a0e1a;
-  --danger: #ff6b6b;
-  --link: #8ab4ff;
-  --code-bg: #0b0d13;
-  --search-hit: #ffd166;
-  --search-hit-fg: #1a1400;
-  --shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
 }
 
 html[data-theme="light"] {
   color-scheme: light;
-  --bg: #fafbfd;
-  --bg-elev: #ffffff;
-  --bg-elev-2: #f1f3f8;
-  --bg-hover: #e9ecf3;
-  --border: #e3e6ee;
-  --border-strong: #c8cde0;
-  --text: #1a1d28;
-  --text-muted: #5a6278;
-  --text-dim: #8890a6;
-  --accent: #2f5bff;
-  --accent-strong: #1e49e3;
-  --accent-fg: #ffffff;
-  --danger: #d33;
-  --link: #1e49e3;
-  --code-bg: #f1f3f8;
-  --search-hit: #ffe066;
-  --search-hit-fg: #3a2a00;
-  --shadow: 0 10px 30px rgba(20, 30, 60, 0.12);
 }
 
 * {
@@ -558,7 +550,7 @@ mark.user-marker {
 .global-search-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: color-mix(in srgb, var(--color-scrim) 45%, transparent);
   display: flex;
   align-items: flex-start;
   justify-content: center;
