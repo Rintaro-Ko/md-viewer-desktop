@@ -1,0 +1,47 @@
+#!/bin/bash
+# Pre-commit secret scanner (2026-08-18 baseline v2).
+# 1) gitleaks protect --staged (installed なら。ルールセットが広い)
+# 2) fallback/追加: 主要シークレットの regex スキャン
+# Bypass (only when justified): git commit --no-verify
+set -uo pipefail
+
+if command -v gitleaks >/dev/null 2>&1; then
+  if ! gitleaks protect --staged --no-banner --redact; then
+    printf '\ngitleaks: staged changes に secret 検出。Keychain を使うこと。\n' >&2
+    printf 'If false positive: .gitleaksignore に fingerprint を追加 (根拠コメント必須)\n' >&2
+    exit 1
+  fi
+fi
+
+added=$(git diff --cached --diff-filter=AM -U0 -- \
+  '*.plist' '*.py' '*.sh' '*.yaml' '*.yml' '*.json' '*.md' '*.txt' '*.toml' '*.env' \
+  2>/dev/null | grep '^+' | grep -v '^+++' || true)
+
+violations=0
+report() {
+  printf 'BLOCKED %s:\n  %s\n' "$1" "$2" >&2
+  violations=$((violations + 1))
+}
+
+while IFS= read -r line; do
+  [ -z "$line" ] && continue
+  if echo "$line" | grep -qE 'hooks\.slack\.com/services/T[A-Z0-9]+/B[A-Z0-9]+/[A-Za-z0-9]+'; then
+    report "Slack webhook URL" "$line"
+  fi
+  if echo "$line" | grep -qE 'AIzaSy[A-Za-z0-9_-]{30,}'; then
+    report "Google API key" "$line"
+  fi
+  if echo "$line" | grep -qE 'xox[bapsr]-[0-9A-Za-z-]{10,}'; then
+    report "Slack token" "$line"
+  fi
+  if echo "$line" | grep -qE 'sk-(ant-|proj-)?[A-Za-z0-9_-]{20,}'; then
+    report "OpenAI/Anthropic API key" "$line"
+  fi
+done <<< "$added"
+
+if [ "$violations" -gt 0 ]; then
+  printf '\n%d secret(s) detected. Use Keychain (security find-generic-password) instead.\n' "$violations" >&2
+  printf 'If false positive: git commit --no-verify\n' >&2
+  exit 1
+fi
+exit 0
