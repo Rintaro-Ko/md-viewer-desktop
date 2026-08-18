@@ -22,7 +22,13 @@ _cleanup() {
   [[ -n "${PROMPT_FILE}" ]] && rm -f "${PROMPT_FILE}" 2>/dev/null || true
   cd "${PROJECT_DIR}" 2>/dev/null || true
   git worktree remove --force "${WT}" >/dev/null 2>&1 || true
-  return $rc
+  if [ "${_ILO_IMPL_DONE:-0}" != "1" ] && [ "$rc" -eq 0 ]; then
+    # bash 3.2 では set -u 等の shell error が $?=0 のまま EXIT trap に入り、
+    # return 0 が偽の成功になる (2026-08-18 diffusion#6 偽 QA Passed の真因)。
+    # 完走 sentinel が立っていない正常終了コードは失敗に倒す。
+    rc=1
+  fi
+  exit "$rc"
 }
 
 git fetch origin --quiet || true
@@ -103,3 +109,6 @@ ILO の実装フェーズが生成した PR です。**レビュー済みでは�
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)" \
   --base main --head "${BRANCH}"
+
+# ここまで到達した run だけが成功。EXIT trap がこれを見て偽 green を防ぐ。
+_ILO_IMPL_DONE=1
